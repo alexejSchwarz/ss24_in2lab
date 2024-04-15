@@ -10,6 +10,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.when;
@@ -42,10 +43,13 @@ class CourseServiceTest {
 
         assertThat(customer.getCourses()).size().isEqualTo(0);
 
-        courseService.enrollInCourse(customer.getLastName(), new Course("Software Engineering 1"));
+        Course c = new Course("Software Engineering 1");
+        assertEquals(0, c.getAnzahlTeilnehmer());
+        courseService.enrollInCourse(customer.getLastName(), c);
 
         assertThat(customerService.findCustomerByLastname(customer.getLastName()).getCourses())
                 .size().isEqualTo(1);
+        assertEquals(1, c.getAnzahlTeilnehmer());
     }
 
     @Test

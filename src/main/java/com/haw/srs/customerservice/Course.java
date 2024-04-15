@@ -24,5 +24,6 @@ public class Course {
 
     public Course(String name) {
         this.name = name;
+        this.anzahlTeilnehmer = 0;
     }
 }
