@@ -27,11 +27,11 @@ public class CourseService {
                 .orElseThrow(() -> new CustomerNotFoundException(lastName));
 
         customer.addCourse(course);
-        // TODO muss course im repo gespeichert werden? Wann muessen Entities gespeichert werden?
         incCourseMembNumb(course);
         customerRepository.save(customer);
     }
 
+    // TODO Frage, wieso kein enroll? Wieso List fuer Kurse? können Customer ein und den gleichen Kurs mehrfach haben? Bei List schon
     @Transactional
     public void transferCourses(String fromCustomerLastName, String toCustomerLastName) throws CustomerNotFoundException {
         Customer from = customerRepository
@@ -61,7 +61,6 @@ public class CourseService {
 
         // some implementation goes here
         // find customer, find course, look for membership, remove membership, etc.
-        // TODO customer finden, cust und course speichern? E-mail?
         // TODO ist NP in Ordnung oder muss unbedingt IllegalArgument sein?
         // TODO inwie fern ignorieren?
 
@@ -76,7 +75,6 @@ public class CourseService {
             return;
         }
         Course c = optC.get();
-
         decCourseMembNumb(c);
 
         boolean mailWasSent = mailGateway.sendMail(customerMail, "Oh, we're sorry that you canceled your membership!", "Some text to make her/him come back again...");

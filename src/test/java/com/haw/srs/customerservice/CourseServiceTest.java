@@ -1,6 +1,7 @@
 package com.haw.srs.customerservice;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,41 +29,49 @@ class CourseServiceTest {
     @Autowired
     private CustomerRepository customerRepository;
 
+    @Autowired
+    private CourseRepository courseRepository;
+
     @MockBean
     private MailGateway mailGateway;
+
+    private Customer testCust;
+
+    private Course testCourse;
 
     @BeforeEach
     void setup() {
         customerRepository.deleteAll();
+        courseRepository.deleteAll();
+        testCust = new Customer("Jane", "Doe", Gender.FEMALE, "jane.doe@mail.com", null);
+        testCourse = new Course("Software Engineering 1");
     }
 
     @Test
     void enrollCustomerInCourseSuccess() throws CustomerNotFoundException {
-        Customer customer = new Customer("Jane", "Doe", Gender.FEMALE, "jane.doe@mail.com", null);
-        customerRepository.save(customer);
+        customerRepository.save(testCust);
 
-        assertThat(customer.getCourses()).size().isEqualTo(0);
+        assertThat(testCust.getCourses()).size().isEqualTo(0);
 
-        Course c = new Course("Software Engineering 1");
-        assertEquals(0, c.getAnzahlTeilnehmer());
-        courseService.enrollInCourse(customer.getLastName(), c);
+        assertEquals(0, testCourse.getAnzahlTeilnehmer());
+        courseService.enrollInCourse(testCust.getLastName(), testCourse);
 
-        assertThat(customerService.findCustomerByLastname(customer.getLastName()).getCourses())
+        assertThat(customerService.findCustomerByLastname(testCust.getLastName()).getCourses())
                 .size().isEqualTo(1);
-        assertEquals(1, c.getAnzahlTeilnehmer());
+        assertEquals(1, testCourse.getAnzahlTeilnehmer());
     }
 
     @Test
     void enrollCustomerInCourseFailBecauseOfCustomerNotFound() {
         assertThatExceptionOfType(CustomerNotFoundException.class)
-                .isThrownBy(() -> courseService.enrollInCourse("notExisting", new Course("Software Engineering 1")))
+                .isThrownBy(() -> courseService.enrollInCourse("notExisting", testCourse))
                 .withMessageContaining("Could not find customer with lastname notExisting.");
     }
 
     @Test
     void transferCoursesSuccess() throws CustomerNotFoundException {
         Customer from = new Customer("John", "Smith", Gender.MALE);
-        from.addCourse(new Course("Software Engineering 1"));
+        from.addCourse(testCourse);
         from.addCourse(new Course("Software Engineering 2"));
         customerRepository.save(from);
         Customer to = new Customer("Eva", "Miller", Gender.FEMALE);
@@ -91,15 +100,18 @@ class CourseServiceTest {
     }
 
     @Test
-    void cancelMembershipFailBecauseOfUnableToSendMail() {
+    void cancelMembershipFailBecauseOfUnableToSendMail() throws CustomerNotFoundException {
         // set up customer and course here
         // ...
+        courseRepository.save(testCourse);
+        customerRepository.save(testCust);
+        courseService.enrollInCourse(testCust.getLastName(), testCourse);
 
         // configure MailGateway-mock
         when(mailGateway.sendMail(anyString(), anyString(), anyString())).thenReturn(false);
 
         assertThatExceptionOfType(MembershipMailNotSent.class)
-                .isThrownBy(() -> courseService.cancelMembership(new CustomerNumber(1L), new CourseNumber(1L)))
+                .isThrownBy(() -> courseService.cancelMembership(new CustomerNumber(testCust.getId()), new CourseNumber(testCourse.getId())))
                 .withMessageContaining("Could not send membership mail to");
     }
     
@@ -112,5 +124,21 @@ class CourseServiceTest {
         given(mailGateway.sendMail(anyString(), anyString(), anyString())).willReturn(true);
 
         courseService.cancelMembership(new CustomerNumber(1L), new CourseNumber(1L));
+    }
+
+    @Test
+    void cancelMembershipSuccessCheckMembNum() throws CustomerNotFoundException, CourseNotFoundException, MembershipMailNotSent {
+        courseRepository.save(testCourse);
+        customerRepository.save(testCust);
+        courseService.enrollInCourse(testCust.getLastName(), testCourse);
+
+        assertEquals(1, testCourse.getAnzahlTeilnehmer());
+        when(mailGateway.sendMail(anyString(), anyString(), anyString())).thenReturn(true);
+        courseService.cancelMembership(new CustomerNumber(testCust.getId()), new CourseNumber(testCourse.getId()));
+
+        Course updatedCourse = courseRepository
+                .findById(testCourse.getId())
+                .orElseThrow();
+        assertEquals(0, updatedCourse.getAnzahlTeilnehmer());
     }
 }
